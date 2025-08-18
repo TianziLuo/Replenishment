@@ -4,18 +4,16 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 func main() {
-	// Target network shared folder to search
 	targetPath := `\\MICHAEL\ctshippingapp\STICKER\PROCESS`
 	reader := bufio.NewReader(os.Stdin)
 
-	// Prompt user to scan a barcode
 	fmt.Print("Please scan the keyword: ")
-	// Read input from scanner (usually acts as keyboard, sends Enter automatically)
 	keyword, _ := reader.ReadString('\n')
 	keyword = strings.ToLower(strings.TrimSpace(keyword))
 
@@ -26,27 +24,35 @@ func main() {
 
 	fmt.Println("Searching, please wait...")
 
-	// Read entries in the top-level directory (one layer only)
 	entries, err := os.ReadDir(targetPath)
 	if err != nil {
 		fmt.Println("Cannot access directory:", err)
 		return
 	}
 
-	matches := []string{}
+	var firstFolder string
 	for _, entry := range entries {
-		// Check if entry is a directory and matches the keyword
 		if entry.IsDir() && strings.Contains(strings.ToLower(entry.Name()), keyword) {
-			fullPath := filepath.Join(targetPath, entry.Name())
-			matches = append(matches, fullPath)
-			fmt.Println("Found:", fullPath) // Print matching folder immediately
+			firstFolder = filepath.Join(targetPath, entry.Name())
+			fmt.Println("Found folder:", firstFolder)
+
+			// Just record the first matched folder
+			break
 		}
 	}
 
-	// Print summary
-	if len(matches) == 0 {
+	if firstFolder == "" {
 		fmt.Println("No matching folders found")
-	} else {
-		fmt.Printf("Search completed, found %d matching folder(s)\n", len(matches))
+		return
 	}
+
+	// Call the Python script to process sku.TXT
+	pyExe := `C:\Users\monica\AppData\Local\Programs\Python\Python313\python.exe`
+	pyScript := `C:\Users\monica\Desktop\Seagull\Replenishment\utils_func\readSKU.py`
+	cmd := exec.Command(pyExe, pyScript, firstFolder)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("Error running Python:", err)
+	}
+	fmt.Println(string(output))
 }
